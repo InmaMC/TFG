@@ -1,0 +1,967 @@
+[gd_scene load_steps=44 format=2]
+
+[ext_resource path="res://Main.gd" type="Script" id=1]
+[ext_resource path="res://MeshInstance.gd" type="Script" id=2]
+[ext_resource path="res://FG_Quad_EDGE.material" type="Material" id=3]
+[ext_resource path="res://render_bots/RenderBots.tscn" type="PackedScene" id=4]
+[ext_resource path="res://Camera.gd" type="Script" id=5]
+[ext_resource path="res://ViewportContainer.gd" type="Script" id=6]
+[ext_resource path="res://Normal.gd" type="Script" id=7]
+[ext_resource path="res://MainView.gd" type="Script" id=8]
+[ext_resource path="res://Depth.gd" type="Script" id=9]
+[ext_resource path="res://fuentes/plex_mono_16.tres" type="DynamicFont" id=10]
+[ext_resource path="res://render_bots/BallLight.tscn" type="PackedScene" id=11]
+
+[sub_resource type="Environment" id=1]
+background_mode = 1
+
+[sub_resource type="World" id=2]
+environment = SubResource( 1 )
+
+[sub_resource type="SpatialMaterial" id=3]
+resource_local_to_scene = true
+
+[sub_resource type="SpatialMaterial" id=4]
+albedo_color = Color( 0.223529, 0.211765, 0.211765, 1 )
+
+[sub_resource type="CubeMesh" id=5]
+material = SubResource( 4 )
+
+[sub_resource type="SpatialMaterial" id=6]
+albedo_color = Color( 0.223529, 0.211765, 0.211765, 1 )
+
+[sub_resource type="CubeMesh" id=7]
+material = SubResource( 6 )
+
+[sub_resource type="Shader" id=8]
+code = "shader_type canvas_item;
+
+void fragment(){
+	vec3 normal = texture(TEXTURE, UV).rgb;
+	COLOR.rgb = vec3(abs(normal));
+}"
+
+[sub_resource type="ShaderMaterial" id=9]
+shader = SubResource( 8 )
+
+[sub_resource type="Environment" id=10]
+background_mode = 1
+background_color = Color( 0.5, 0.5, 1, 1 )
+
+[sub_resource type="World" id=11]
+environment = SubResource( 10 )
+
+[sub_resource type="Shader" id=12]
+code = "shader_type spatial;
+
+// quitar iluminación
+render_mode unshaded;
+
+void fragment(){
+	// poner signo, rangos (tener en cuenta las normales negativas, no se están metiendo)
+	// (NORMAL + vec3(127))/vec3(128);
+	// ALBEDO = (NORMAL + vec3(0.5));
+	ALBEDO = (normalize(NORMAL) * 0.5) + vec3(0.5);
+}"
+
+[sub_resource type="ShaderMaterial" id=13]
+shader = SubResource( 12 )
+
+[sub_resource type="QuadMesh" id=14]
+size = Vector2( 2, 2 )
+
+[sub_resource type="Shader" id=15]
+code = "shader_type spatial;
+render_mode unshaded, depth_draw_never;
+uniform vec4 FILL  = vec4(1.0);
+void vertex() {
+	POSITION = vec4(VERTEX.xy, 1.0, 1.0);
+}
+
+void fragment() {
+	ALBEDO = FILL.rgb;
+}"
+
+[sub_resource type="ShaderMaterial" id=16]
+shader = SubResource( 15 )
+shader_param/FILL = Plane( 0.5, 0.5, 1, 1 )
+
+[sub_resource type="Shader" id=17]
+code = "shader_type canvas_item;
+
+void fragment(){
+	// unpck curvature
+	vec3 sample = texture(TEXTURE, UV).rgb;
+	highp float curvature = sample.r + (sample.g + sample.b/256.0)/256.0;
+	COLOR.rgb = vec3(curvature);
+}"
+
+[sub_resource type="ShaderMaterial" id=18]
+shader = SubResource( 17 )
+
+[sub_resource type="Environment" id=19]
+background_mode = 1
+background_color = Color( 0.5, 0, 0, 1 )
+
+[sub_resource type="World" id=20]
+environment = SubResource( 19 )
+
+[sub_resource type="Shader" id=21]
+code = "shader_type spatial;
+render_mode unshaded;
+
+const float RANGE = 1.0;
+
+void fragment(){
+	// derivative in x and y of the normal, how much the normal is changing in that pixel horizontally and vertically
+	vec3 normal_dx = dFdx(NORMAL);
+	vec3 normal_dy = dFdy(NORMAL);
+	
+	// how far away the pixels are
+	float pos_dx = 160.0*length(dFdx(VERTEX));
+	float pos_dy = 160.0*length(dFdy(VERTEX));
+	
+	//from -RANGE/2 to RANGE/2 [-0.5,0.5], 
+	// the change of the normal base on the distance is the curvature
+	highp float curvature = normal_dx.x/pos_dx + normal_dy.y/pos_dy;
+	//from 0 to RANGE because we want all the values to be positive
+	curvature += 0.5*RANGE; // curvature can be negative,
+	//from 0 to 1;
+	curvature = curvature/RANGE;
+	//clamping outside the range
+	curvature = clamp(curvature, 0, 1.0); // in case we get values out of range
+	
+	// packing the curvature in the color
+	ALBEDO.r = curvature;
+	curvature *= 256.0;
+	ALBEDO.g = fract(curvature);
+	curvature *= 256.0;
+	ALBEDO.b = fract(curvature);
+}"
+
+[sub_resource type="ShaderMaterial" id=22]
+shader = SubResource( 21 )
+
+[sub_resource type="ShaderMaterial" id=23]
+shader = SubResource( 15 )
+shader_param/FILL = Plane( 0.5, 0, 0, 1 )
+
+[sub_resource type="Environment" id=24]
+background_mode = 1
+background_color = Color( 100, 100, 100, 1 )
+
+[sub_resource type="World" id=25]
+environment = SubResource( 24 )
+
+[sub_resource type="Shader" id=26]
+code = "shader_type spatial;
+
+render_mode unshaded;
+
+void fragment(){
+	ALBEDO = -vec3(VERTEX.z);
+}"
+
+[sub_resource type="ShaderMaterial" id=27]
+shader = SubResource( 26 )
+
+[sub_resource type="ShaderMaterial" id=28]
+shader = SubResource( 15 )
+shader_param/FILL = Plane( 100, 100, 100, 1 )
+
+[sub_resource type="Shader" id=29]
+code = "shader_type canvas_item;
+const float MAX_DISTANCE = 256.0; //max distance that we measure, any bigger we clamp it
+
+// only take in account edges, offset is an edge
+float get_distance_at(ivec2 origin, ivec2 offset, sampler2D tex) {
+	ivec2 minimum = ivec2(0);
+	ivec2 maximum = textureSize(tex, 0) - ivec2(1);
+	return texelFetch(tex, clamp(origin + offset, minimum, maximum), 0).r * MAX_DISTANCE + length(vec2(offset)); 
+}
+
+void fragment() {
+	ivec2 coords = ivec2(FRAGCOORD.xy);
+	float min_dist = get_distance_at(coords, ivec2(0), TEXTURE); //dist where i am right now, edge is 0, not edge max_dist
+	ivec2 min_offset = ivec2(0);
+	
+	// spiral search for the minimal distance to an edge and the direction it is
+	for (int d = 1; d <= int(min_dist); d++) {
+		for (int i = -d; i < d; i++) {
+			ivec2 offset_top = ivec2(i, -d);
+			ivec2 offset_right = ivec2(d, i);
+			ivec2 offset_left = ivec2(-d, -i);
+			ivec2 offset_bottom = ivec2(-i, d);
+			float dist_top = get_distance_at(coords, offset_top, TEXTURE);
+			float dist_right = get_distance_at(coords, offset_right, TEXTURE);
+			float dist_bottom = get_distance_at(coords, offset_bottom, TEXTURE);
+			float dist_left = get_distance_at(coords, offset_left, TEXTURE);
+			float min_current = min(min(dist_top, dist_bottom), min(dist_right, dist_left));
+			if(min_dist > min_current){
+				min_offset = ivec2(0);
+			}
+			min_dist = min(min_current, min_dist);
+			if(dist_top == min_dist){
+				min_offset += offset_top;
+			}
+			if(dist_bottom == min_dist){
+				min_offset += offset_bottom;
+			}
+			if(dist_right == min_dist){
+				min_offset += offset_right;
+			}
+			if(dist_left == min_dist){
+				min_offset += offset_left;
+			}
+			// we get the average min_offset
+		}
+	}
+	vec2 direction = normalize(vec2(min_offset));
+	if(min_offset == ivec2(0)){
+		direction = vec2(0);
+	}
+	
+	// red distance, green and blue direction
+	COLOR.rgb = vec3(clamp(min_dist, 0.0, MAX_DISTANCE), direction);
+}"
+
+[sub_resource type="ShaderMaterial" id=30]
+shader = SubResource( 29 )
+
+[sub_resource type="ViewportTexture" id=31]
+viewport_path = NodePath("TabContainer/3DView/MainView/Edge/Viewport")
+
+[sub_resource type="World" id=32]
+
+[node name="Main" type="Node"]
+script = ExtResource( 1 )
+
+[node name="TabContainer" type="TabContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_bottom = -3.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="3DView" type="HBoxContainer" parent="TabContainer"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+
+[node name="ControlPanel" type="VBoxContainer" parent="TabContainer/3DView"]
+margin_right = 128.0
+margin_bottom = 561.0
+
+[node name="Label2" type="Label" parent="TabContainer/3DView/ControlPanel"]
+margin_right = 128.0
+margin_bottom = 22.0
+custom_fonts/font = ExtResource( 10 )
+text = "Menu"
+align = 1
+
+[node name="Button" type="Button" parent="TabContainer/3DView/ControlPanel"]
+margin_top = 26.0
+margin_right = 128.0
+margin_bottom = 46.0
+text = "Open File"
+
+[node name="velocity" type="HBoxContainer" parent="TabContainer/3DView/ControlPanel"]
+visible = false
+margin_top = 50.0
+margin_right = 133.0
+margin_bottom = 74.0
+
+[node name="Label" type="Label" parent="TabContainer/3DView/ControlPanel/velocity"]
+margin_top = 5.0
+margin_right = 55.0
+margin_bottom = 19.0
+text = "Velocity:"
+
+[node name="velocity" type="SpinBox" parent="TabContainer/3DView/ControlPanel/velocity"]
+margin_left = 59.0
+margin_right = 133.0
+margin_bottom = 24.0
+step = 0.5
+page = 1.0
+value = 1.0
+
+[node name="Label3" type="Label" parent="TabContainer/3DView/ControlPanel"]
+margin_top = 50.0
+margin_right = 128.0
+margin_bottom = 64.0
+text = "G-Buffer Size:"
+
+[node name="x_size" type="HBoxContainer" parent="TabContainer/3DView/ControlPanel"]
+margin_top = 68.0
+margin_right = 128.0
+margin_bottom = 92.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="TabContainer/3DView/ControlPanel/x_size"]
+margin_top = 5.0
+margin_right = 20.0
+margin_bottom = 19.0
+text = "X : "
+
+[node name="Value" type="SpinBox" parent="TabContainer/3DView/ControlPanel/x_size"]
+margin_left = 24.0
+margin_right = 128.0
+margin_bottom = 24.0
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 4096.0
+value = 1024.0
+align = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="y_size" type="HBoxContainer" parent="TabContainer/3DView/ControlPanel"]
+margin_top = 96.0
+margin_right = 128.0
+margin_bottom = 120.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="TabContainer/3DView/ControlPanel/y_size"]
+margin_top = 5.0
+margin_right = 19.0
+margin_bottom = 19.0
+text = "Y : "
+
+[node name="Value" type="SpinBox" parent="TabContainer/3DView/ControlPanel/y_size"]
+margin_left = 23.0
+margin_right = 128.0
+margin_bottom = 24.0
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 4096.0
+value = 1024.0
+align = 2
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="GenGBuffer" type="Button" parent="TabContainer/3DView/ControlPanel"]
+margin_top = 124.0
+margin_right = 128.0
+margin_bottom = 144.0
+text = "Generate G-Buffer"
+
+[node name="MainView" type="TabContainer" parent="TabContainer/3DView"]
+margin_left = 132.0
+margin_right = 1016.0
+margin_bottom = 561.0
+size_flags_horizontal = 3
+tab_align = 0
+script = ExtResource( 8 )
+
+[node name="Color" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/Color"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 2 )
+handle_input_locally = false
+hdr = false
+render_target_update_mode = 3
+
+[node name="Spatial" type="Spatial" parent="TabContainer/3DView/MainView/Color/Viewport"]
+
+[node name="MeshPrincipal" type="MeshInstance" parent="TabContainer/3DView/MainView/Color/Viewport/Spatial"]
+material_override = SubResource( 3 )
+script = ExtResource( 2 )
+
+[node name="RemoteTransform" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal"]
+remote_path = NodePath("../../../../../Curvature/Viewport/Curvature")
+
+[node name="RemoteTransform2" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal"]
+remote_path = NodePath("../../../../../Normal/Viewport/Normal")
+
+[node name="RemoteTransform3" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal"]
+remote_path = NodePath("../../../../../Depth/Viewport/Depth")
+
+[node name="RemoteTransform4" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal"]
+remote_path = NodePath("../../../../../Edge/Viewport/Edge")
+
+[node name="entorno" type="Spatial" parent="TabContainer/3DView/MainView/Color/Viewport"]
+transform = Transform( 0.017557, 0, 0.999846, 0, 1, 0, -0.999846, 0, 0.017557, 0.384596, 0, -4.73935 )
+visible = false
+
+[node name="pared" type="MeshInstance" parent="TabContainer/3DView/MainView/Color/Viewport/entorno"]
+transform = Transform( 0.1, 0, 0, 0, 3, 0, 0, 0, 5, 1.37895, 2.22328, 0 )
+mesh = SubResource( 5 )
+material/0 = null
+
+[node name="suelo" type="MeshInstance" parent="TabContainer/3DView/MainView/Color/Viewport/entorno"]
+transform = Transform( 3, 0, 0, 0, 0.1, 0, 0, 0, 5, -1.77893, -0.510797, 0 )
+layers = 3
+mesh = SubResource( 7 )
+material/0 = null
+
+[node name="CameraPivot" type="Spatial" parent="TabContainer/3DView/MainView/Color/Viewport"]
+script = ExtResource( 5 )
+
+[node name="Camera" type="Camera" parent="TabContainer/3DView/MainView/Color/Viewport/CameraPivot"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5 )
+
+[node name="RemoteTransform" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/CameraPivot/Camera"]
+remote_path = NodePath("../../../../../Curvature/Viewport/Camera")
+
+[node name="RemoteTransform2" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/CameraPivot/Camera"]
+remote_path = NodePath("../../../../../Normal/Viewport/Camera")
+
+[node name="RemoteTransform3" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/CameraPivot/Camera"]
+remote_path = NodePath("../../../../../Depth/Viewport/Camera")
+
+[node name="RemoteTransform4" type="RemoteTransform" parent="TabContainer/3DView/MainView/Color/Viewport/CameraPivot/Camera"]
+remote_path = NodePath("../../../../../Edge/Viewport/Camera")
+
+[node name="DirectionalLight" type="DirectionalLight" parent="TabContainer/3DView/MainView/Color/Viewport"]
+
+[node name="Normal" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+visible = false
+material = SubResource( 9 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/Normal"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 11 )
+handle_input_locally = false
+keep_3d_linear = true
+render_target_update_mode = 0
+
+[node name="Normal" type="MeshInstance" parent="TabContainer/3DView/MainView/Normal/Viewport"]
+material_override = SubResource( 13 )
+script = ExtResource( 7 )
+
+[node name="Camera" type="Camera" parent="TabContainer/3DView/MainView/Normal/Viewport"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5 )
+current = true
+
+[node name="BG_QUAD" type="MeshInstance" parent="TabContainer/3DView/MainView/Normal/Viewport/Camera"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.55542, -4.13778 )
+extra_cull_margin = 16384.0
+mesh = SubResource( 14 )
+material/0 = SubResource( 16 )
+
+[node name="Curvature" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+visible = false
+material = SubResource( 18 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/Curvature"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 20 )
+handle_input_locally = false
+hdr = false
+keep_3d_linear = true
+render_target_update_mode = 0
+
+[node name="Curvature" type="MeshInstance" parent="TabContainer/3DView/MainView/Curvature/Viewport"]
+material_override = SubResource( 22 )
+script = ExtResource( 7 )
+
+[node name="Camera" type="Camera" parent="TabContainer/3DView/MainView/Curvature/Viewport"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5 )
+current = true
+
+[node name="BG_QUAD" type="MeshInstance" parent="TabContainer/3DView/MainView/Curvature/Viewport/Camera"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.55542, -4.13778 )
+extra_cull_margin = 16384.0
+mesh = SubResource( 14 )
+material/0 = SubResource( 23 )
+
+[node name="Depth" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/Depth"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 25 )
+handle_input_locally = false
+keep_3d_linear = true
+render_target_update_mode = 0
+
+[node name="Depth" type="MeshInstance" parent="TabContainer/3DView/MainView/Depth/Viewport"]
+material_override = SubResource( 27 )
+script = ExtResource( 9 )
+
+[node name="Camera" type="Camera" parent="TabContainer/3DView/MainView/Depth/Viewport"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5 )
+current = true
+
+[node name="BG_QUAD" type="MeshInstance" parent="TabContainer/3DView/MainView/Depth/Viewport/Camera"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.27771, -2.06889 )
+extra_cull_margin = 16384.0
+mesh = SubResource( 14 )
+material/0 = SubResource( 28 )
+
+[node name="Edge" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/Edge"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 25 )
+handle_input_locally = false
+keep_3d_linear = true
+render_target_update_mode = 0
+
+[node name="Edge" type="MeshInstance" parent="TabContainer/3DView/MainView/Edge/Viewport"]
+material_override = SubResource( 27 )
+script = ExtResource( 9 )
+
+[node name="Camera" type="Camera" parent="TabContainer/3DView/MainView/Edge/Viewport"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 5 )
+current = true
+
+[node name="BG_QUAD" type="MeshInstance" parent="TabContainer/3DView/MainView/Edge/Viewport/Camera"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.27771, -2.06889 )
+extra_cull_margin = 16384.0
+mesh = SubResource( 14 )
+material/0 = SubResource( 28 )
+
+[node name="FG_QUAD" type="MeshInstance" parent="TabContainer/3DView/MainView/Edge/Viewport/Camera"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.27771, -2.06889 )
+extra_cull_margin = 16384.0
+mesh = SubResource( 14 )
+material/0 = ExtResource( 3 )
+
+[node name="DistEdge" type="ViewportContainer" parent="TabContainer/3DView/MainView"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+stretch = true
+
+[node name="Viewport" type="Viewport" parent="TabContainer/3DView/MainView/DistEdge"]
+size = Vector2( 876, 525 )
+own_world = true
+world = SubResource( 25 )
+handle_input_locally = false
+keep_3d_linear = true
+render_target_update_mode = 0
+
+[node name="TextureRect" type="TextureRect" parent="TabContainer/3DView/MainView/DistEdge/Viewport"]
+visible = false
+material = SubResource( 30 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+texture = SubResource( 31 )
+flip_v = true
+
+[node name="FileDialog" type="FileDialog" parent="TabContainer/3DView/MainView"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = -132.0
+margin_top = 18.0
+margin_right = -140.0
+margin_bottom = -18.0
+window_title = "Open a File"
+mode = 0
+access = 2
+current_dir = "/Users/inmam/Desktop"
+current_file = "PLYY"
+current_path = "/Users/inmam/Desktop/PLYY"
+
+[node name="Renderbots" type="HBoxContainer" parent="TabContainer"]
+visible = false
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 4.0
+margin_top = 32.0
+margin_right = -4.0
+margin_bottom = -4.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="ScrollContainer" type="ScrollContainer" parent="TabContainer/Renderbots"]
+margin_right = 200.0
+margin_bottom = 561.0
+rect_min_size = Vector2( 200, 0 )
+
+[node name="Parametros" type="VBoxContainer" parent="TabContainer/Renderbots/ScrollContainer"]
+margin_right = 200.0
+margin_bottom = 640.0
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_right = 188.0
+margin_bottom = 14.0
+text = "Menu"
+align = 1
+valign = 1
+
+[node name="Start" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 18.0
+margin_right = 188.0
+margin_bottom = 38.0
+text = "Start"
+
+[node name="Pause" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 42.0
+margin_right = 188.0
+margin_bottom = 62.0
+disabled = true
+text = "Pause"
+
+[node name="Stop" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+visible = false
+margin_top = 66.0
+margin_right = 168.0
+margin_bottom = 86.0
+disabled = true
+text = "Stop"
+
+[node name="HideBots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 66.0
+margin_right = 188.0
+margin_bottom = 86.0
+text = "Hide Bots"
+
+[node name="ShowBots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 90.0
+margin_right = 188.0
+margin_bottom = 110.0
+text = "Show Bots"
+
+[node name="KillBots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 114.0
+margin_right = 188.0
+margin_bottom = 134.0
+text = "Kill All Bots"
+
+[node name="Label2" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 138.0
+margin_right = 188.0
+margin_bottom = 152.0
+text = "Transparency:"
+
+[node name="Transparency" type="HScrollBar" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 156.0
+margin_right = 188.0
+margin_bottom = 168.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="Label5" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 172.0
+margin_right = 188.0
+margin_bottom = 186.0
+
+[node name="Edgebots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 190.0
+margin_right = 188.0
+margin_bottom = 218.0
+custom_fonts/font = ExtResource( 10 )
+disabled = true
+text = "Edgebots"
+
+[node name="EdColor" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 222.0
+margin_right = 188.0
+margin_bottom = 242.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/EdColor"]
+margin_top = 3.0
+margin_right = 37.0
+margin_bottom = 17.0
+text = "Color:"
+
+[node name="EdgeColorPicker" type="ColorPickerButton" parent="TabContainer/Renderbots/ScrollContainer/Parametros/EdColor"]
+margin_left = 41.0
+margin_right = 163.0
+margin_bottom = 20.0
+text = "----------------------"
+
+[node name="EgThick" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 246.0
+margin_right = 188.0
+margin_bottom = 270.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/EgThick"]
+margin_top = 5.0
+margin_right = 67.0
+margin_bottom = 19.0
+text = "Thickness:"
+
+[node name="EdgeThick" type="SpinBox" parent="TabContainer/Renderbots/ScrollContainer/Parametros/EgThick"]
+margin_left = 71.0
+margin_right = 145.0
+margin_bottom = 24.0
+min_value = 0.01
+step = 0.5
+value = 1.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="KillEdgebots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 274.0
+margin_right = 188.0
+margin_bottom = 294.0
+text = "Kill All Edgebots"
+
+[node name="Label6" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 298.0
+margin_right = 188.0
+margin_bottom = 312.0
+
+[node name="Hatchbots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 316.0
+margin_right = 188.0
+margin_bottom = 344.0
+custom_fonts/font = ExtResource( 10 )
+text = "Hatchbots"
+
+[node name="HtColor" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 348.0
+margin_right = 188.0
+margin_bottom = 368.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/HtColor"]
+margin_top = 3.0
+margin_right = 37.0
+margin_bottom = 17.0
+text = "Color:"
+
+[node name="HatchColorPicker" type="ColorPickerButton" parent="TabContainer/Renderbots/ScrollContainer/Parametros/HtColor"]
+margin_left = 41.0
+margin_right = 163.0
+margin_bottom = 20.0
+text = "----------------------"
+
+[node name="Direction" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 372.0
+margin_right = 188.0
+margin_bottom = 396.0
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Direction"]
+margin_top = 5.0
+margin_right = 101.0
+margin_bottom = 19.0
+text = "Direction angle:"
+
+[node name="angle" type="SpinBox" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Direction"]
+margin_left = 105.0
+margin_right = 179.0
+margin_bottom = 24.0
+max_value = 180.0
+
+[node name="Separation" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 400.0
+margin_right = 188.0
+margin_bottom = 424.0
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Separation"]
+margin_top = 5.0
+margin_right = 71.0
+margin_bottom = 19.0
+text = "Separation:"
+
+[node name="hatchSeparation" type="SpinBox" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Separation"]
+margin_left = 75.0
+margin_right = 149.0
+margin_bottom = 24.0
+min_value = 0.1
+step = 0.5
+value = 4.0
+
+[node name="Thickness" type="HBoxContainer" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 428.0
+margin_right = 188.0
+margin_bottom = 452.0
+
+[node name="Label" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Thickness"]
+margin_top = 5.0
+margin_right = 67.0
+margin_bottom = 19.0
+text = "Thickness:"
+
+[node name="hatchThick" type="SpinBox" parent="TabContainer/Renderbots/ScrollContainer/Parametros/Thickness"]
+margin_left = 71.0
+margin_right = 145.0
+margin_bottom = 24.0
+min_value = 0.01
+step = 0.5
+value = 1.0
+
+[node name="Label4" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 456.0
+margin_right = 188.0
+margin_bottom = 470.0
+text = "Direction of Light:"
+
+[node name="BallLight" parent="TabContainer/Renderbots/ScrollContainer/Parametros" instance=ExtResource( 11 )]
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_top = 474.0
+margin_right = 188.0
+margin_bottom = 574.0
+rect_min_size = Vector2( 10, 100 )
+size_flags_vertical = 1
+
+[node name="KillHatchbots" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 578.0
+margin_right = 188.0
+margin_bottom = 598.0
+text = "Kill All Hatchbots"
+
+[node name="Label7" type="Label" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 602.0
+margin_right = 188.0
+margin_bottom = 616.0
+
+[node name="SaveImage" type="Button" parent="TabContainer/Renderbots/ScrollContainer/Parametros"]
+margin_top = 620.0
+margin_right = 188.0
+margin_bottom = 640.0
+disabled = true
+text = "Save Image"
+
+[node name="ViewportContainer" type="ViewportContainer" parent="TabContainer/Renderbots"]
+margin_left = 204.0
+margin_right = 1016.0
+margin_bottom = 561.0
+mouse_filter = 1
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 5.0
+stretch = true
+script = ExtResource( 6 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Viewport" type="Viewport" parent="TabContainer/Renderbots/ViewportContainer"]
+size = Vector2( 812, 561 )
+own_world = true
+world = SubResource( 32 )
+handle_input_locally = false
+hdr = false
+disable_3d = true
+usage = 0
+render_target_update_mode = 0
+physics_object_picking = true
+gui_disable_input = true
+
+[node name="RenderBots" parent="TabContainer/Renderbots/ViewportContainer/Viewport" instance=ExtResource( 4 )]
+position = Vector2( 4, 32 )
+start_button = NodePath("../../../ScrollContainer/Parametros/Start")
+pause_button = NodePath("../../../ScrollContainer/Parametros/Pause")
+hide_bots_button = NodePath("../../../ScrollContainer/Parametros/HideBots")
+show_bots_button = NodePath("../../../ScrollContainer/Parametros/ShowBots")
+edgebots_button = NodePath("../../../ScrollContainer/Parametros/Edgebots")
+hatchbots_button = NodePath("../../../ScrollContainer/Parametros/Hatchbots")
+saveImage_button = NodePath("../../../ScrollContainer/Parametros/SaveImage")
+killbots_button = NodePath("../../../ScrollContainer/Parametros/KillBots")
+saveFileDialog = NodePath("../../SaveFileDialog")
+confirmationDialog = NodePath("../../ConfirmationDialog")
+
+[node name="SaveFileDialog" type="FileDialog" parent="TabContainer/Renderbots/ViewportContainer"]
+margin_left = -172.0
+margin_right = 628.0
+margin_bottom = 500.0
+rect_min_size = Vector2( 400, 250 )
+window_title = "Save as PNG"
+resizable = true
+access = 2
+current_dir = "/Users/inmam/Desktop"
+current_path = "/Users/inmam/Desktop/"
+
+[node name="ConfirmationDialog" type="ConfirmationDialog" parent="TabContainer/Renderbots/ViewportContainer"]
+margin_right = 200.0
+margin_bottom = 70.0
+dialog_text = "If you restart without saving you will lose the image.
+Are you sure you want to continue?"
+
+[connection signal="pressed" from="TabContainer/3DView/ControlPanel/Button" to="TabContainer/3DView/MainView" method="_on_Button_pressed"]
+[connection signal="value_changed" from="TabContainer/3DView/ControlPanel/velocity/velocity" to="." method="_on_velocity_value_changed"]
+[connection signal="pressed" from="TabContainer/3DView/ControlPanel/GenGBuffer" to="." method="_on_GenGBuffer_pressed"]
+[connection signal="mesh_changed" from="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal" to="TabContainer/3DView/MainView/Normal/Viewport/Normal" method="_on_MeshPrincipal_mesh_changed"]
+[connection signal="mesh_changed" from="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal" to="TabContainer/3DView/MainView/Curvature/Viewport/Curvature" method="_on_MeshPrincipal_mesh_changed"]
+[connection signal="mesh_changed" from="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal" to="TabContainer/3DView/MainView/Depth/Viewport/Depth" method="_on_MeshPrincipal_mesh_changed"]
+[connection signal="mesh_changed" from="TabContainer/3DView/MainView/Color/Viewport/Spatial/MeshPrincipal" to="TabContainer/3DView/MainView/Edge/Viewport/Edge" method="_on_MeshPrincipal_mesh_changed"]
+[connection signal="file_selected" from="TabContainer/3DView/MainView/FileDialog" to="TabContainer/3DView/MainView" method="_on_FileDialog_file_selected"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Start" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Start_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Pause" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Pause_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Stop" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Stop_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/HideBots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_HideBots_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/ShowBots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_ShowBots_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/KillBots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_KillBots_pressed"]
+[connection signal="value_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Transparency" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Transparency_value_changed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Edgebots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Edgebots_pressed"]
+[connection signal="color_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/EdColor/EdgeColorPicker" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_EdgeColorPicker_color_changed"]
+[connection signal="value_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/EgThick/EdgeThick" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_EdgeThick_value_changed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/KillEdgebots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_KillEdgebots_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Hatchbots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_Hatchbots_pressed"]
+[connection signal="color_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/HtColor/HatchColorPicker" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_HatchColorPicker_color_changed"]
+[connection signal="value_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Direction/angle" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_angle_value_changed"]
+[connection signal="value_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Separation/hatchSeparation" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_hatchSeparation_value_changed"]
+[connection signal="value_changed" from="TabContainer/Renderbots/ScrollContainer/Parametros/Thickness/hatchThick" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_hatchThick_value_changed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/KillHatchbots" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_KillHatchbots_pressed"]
+[connection signal="pressed" from="TabContainer/Renderbots/ScrollContainer/Parametros/SaveImage" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_SaveImage_pressed"]
+[connection signal="file_selected" from="TabContainer/Renderbots/ViewportContainer/SaveFileDialog" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_SaveFileDialog_file_selected"]
+[connection signal="confirmed" from="TabContainer/Renderbots/ViewportContainer/ConfirmationDialog" to="TabContainer/Renderbots/ViewportContainer/Viewport/RenderBots" method="_on_ConfirmationDialog_confirmed"]

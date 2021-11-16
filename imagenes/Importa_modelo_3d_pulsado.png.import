@@ -1,0 +1,35 @@
+[remap]
+
+importer="texture"
+type="StreamTexture"
+path="res://.import/Importa_modelo_3d_pulsado.png-a6fa899e20c8f3040a30eb5ece558a93.stex"
+metadata={
+"vram_texture": false
+}
+
+[deps]
+
+source_file="res://imagenes/Importa_modelo_3d_pulsado.png"
+dest_files=[ "res://.import/Importa_modelo_3d_pulsado.png-a6fa899e20c8f3040a30eb5ece558a93.stex" ]
+
+[params]
+
+compress/mode=0
+compress/lossy_quality=0.7
+compress/hdr_mode=0
+compress/bptc_ldr=0
+compress/normal_map=0
+flags/repeat=0
+flags/filter=true
+flags/mipmaps=false
+flags/anisotropic=false
+flags/srgb=2
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/HDR_as_SRGB=false
+process/invert_color=false
+process/normal_map_invert_y=false
+stream=false
+size_limit=0
+detect_3d=true
+svg/scale=1.0

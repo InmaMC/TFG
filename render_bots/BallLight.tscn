@@ -1,0 +1,52 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://render_bots/BallLight.gd" type="Script" id=1]
+
+[sub_resource type="Shader" id=1]
+code = "shader_type canvas_item;
+
+uniform vec2 Origin;
+uniform vec3 Light;
+
+varying vec2 Pos;
+varying float Radius;
+
+void vertex() {
+	Pos = VERTEX - Origin;
+	Radius = min(Origin.x, Origin.y);
+}
+
+vec3 get_normal(vec2 position) {
+	if(position.x*position.x + position.y*position.y > Radius*Radius) {
+		return vec3(0, 0, 0);
+	}
+	float z = sqrt(Radius*Radius - position.x*position.x - position.y*position.y);
+	return normalize(vec3(position.x, -position.y, z));
+}
+
+
+void fragment() {
+	float light_intensity = -dot(get_normal(Pos), Light)*0.5 + 0.5;
+	light_intensity += smoothstep(0.98, 1.0, light_intensity);
+	COLOR.rgb = vec3(light_intensity);
+}
+"
+
+[sub_resource type="ShaderMaterial" id=2]
+shader = SubResource( 1 )
+shader_param/Origin = Vector2( 20, 20 )
+shader_param/Light = Vector3( 0.4, 0.3, -0.3 )
+
+[node name="BallLight" type="ColorRect"]
+material = SubResource( 2 )
+anchor_right = 1.0
+anchor_bottom = 1.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource( 1 )
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[connection signal="gui_input" from="." to="." method="_on_BallLight_gui_input"]
+[connection signal="resized" from="." to="." method="_on_BallLight_resized"]
