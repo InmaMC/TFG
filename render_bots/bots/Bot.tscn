@@ -9,9 +9,7 @@ radius = 64.9459
 [sub_resource type="CircleShape2D" id=2]
 radius = 100.698
 
-[node name="Bot" type="Area2D" groups=[
-"Bots",
-]]
+[node name="Bot" type="Area2D" groups=["Bots"]]
 script = ExtResource( 1 )
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

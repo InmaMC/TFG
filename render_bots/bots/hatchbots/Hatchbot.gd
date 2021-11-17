@@ -18,11 +18,7 @@ var length_factor = 2
 var markers : Array
 var light : Vector3 = Vector3.DOWN
 var thickness : float = 1
-#var direction_vector = Vector2.ZERO
-#var previous_direction : Vector2 = Vector2.ZERO
-#var correction_vector : Vector2 = Vector2.ZERO
-#var markers : Array = Array()
-#var markers_distance = 2.0
+
 
 var image_size : Vector2 = Vector2.ZERO
 var searching_frames : int = 0
@@ -38,10 +34,6 @@ var cohesion_weight = 0.0
 var cohesion : Vector2
 var proj_d : Vector2
 
-# TODO
-# use them as forces, add them to calculate velocity, different weights for every parameter
-# constantly moving, draw if good htch
-# also markers with a different weigth - than bots-> cohesion and separation
 
 
 func _ready() -> void:
@@ -75,11 +67,6 @@ func wrap_position(pos : Vector2) -> Vector2:
 	return clamp_position(pos)
 	
 	
-#func _draw():
-#	draw_line(Vector2.ZERO, direction_vector*max_velocity, Color.chartreuse, 2.0, true)
-#	draw_line(Vector2.ZERO, current_velocity, Color.orangered, 2.0, true)
-#	draw_line(Vector2.ZERO, correction_vector*max_velocity, Color.blueviolet, 2.0, true)
-
 
 func get_neighbours(render_bots : RenderBots):
 	neighbours.clear()
@@ -100,18 +87,8 @@ func get_forces_boids() -> Vector2:
 	for boid in neighbours:
 		var distance = pos.distance_to(boid)
 		var weight = abs(pos.direction_to(boid).cross(proj_d)) #cross i s0 is the are paralel
-#		alignment += boid.position.direction_to(self.position)
 		cohesion += (boid - pos) * weight
 		separation += (boid.direction_to(pos) / (1 + distance)) * weight
-#		if distance <= separation_distance and distance != 0:
-#			separation -= (boid.position - self.position).normalized() * (separation_distance / distance * max_velocity)
-	
-#	if neighbours.size() > 0:
-#		alignment /= neighbours.size()
-#		cohesion /= neighbours.size()
-#		var center_direction = self.position.direction_to(cohesion)
-#		var center_speed = max_velocity * self.position.distance_to(cohesion) / $CollisionShape2D.shape.radius
-#		cohesion = center_direction * center_speed
 		
 	force += separation * separation_weight + alignment * alignment_weight + cohesion * cohesion_weight
 	
@@ -142,7 +119,6 @@ func get_hatchability_at(pos : Vector2, render_bots : RenderBots) -> float:
 
 
 
-# MAYBE MAKE THE NUMBER OF DESIRED MARKERS IN AREA DEPEND ON HACHABILITY 
 func get_higher_hatchability(pos : Vector2, render_bots : RenderBots, distance : int) -> Vector2:
 	var max_hatchbility : float = get_hatchability_at(pos, render_bots)
 	var position_max_h : Vector2 = pos
@@ -207,12 +183,6 @@ func project_velocity(render_bots : RenderBots) -> void:
 	current_velocity = Vector2(tangent_velocity.x, -tangent_velocity.y)    # .normalized() * length_current_vel
 
 
-
-# if it's hatchable we draw and we move on the direction of the higher hatchability
-# direction = problem --> hatchability not continuous because curvature, maybe always move away from the normals? horizontal,vertical,...
-# they move until the can't move anymore edge or markers or constant(background --> with depth)
-# markers only if we draw ??
-# each step the bot makes to search and draw the edges
 func step_bot(render_bots : RenderBots):
 	image_size = render_bots.target_image.get_size()
 	position = wrap_position(position)
@@ -223,36 +193,11 @@ func step_bot(render_bots : RenderBots):
 	match state:
 		States.SEARCHING: 
 			state = States.DRAWING
-#			searching_frames += 1
-#			self.modulate = Color.blue
-#			var htch = get_hatchability_at(position, render_bots)
-#
-#			if htch > 0 :
-#				state = States.DRAWING
-#				searching_frames = 0
-#			else:
-#				# find hatchability of big square around position with samples of the square
-#				var max_pos : Vector2 = get_higher_hatchability(position, render_bots, 8)
-#				var direction = max_pos - position
-#				direction = direction.normalized()
-#				var force = get_forces_boids()
-#				direction = force
-#				target_velocity = direction * max_velocity
-#				var velocity_dif = target_velocity - current_velocity
-#				var velocity_step = velocity_dif.clamped(max_acceleration * get_physics_process_delta_time())   # velocity_dif.normalized() * min(velocity_dif.length(), max_acceleration * get_physics_process_delta_time())
-#				current_velocity += velocity_step
-#				position += current_velocity * get_physics_process_delta_time() 
-#
-#				if searching_frames >= 120 and state == States.SEARCHING:
-#					queue_free()
-#					searching_frames = 0
+
 
 		States.DRAWING:
 			self.modulate = Color.white
-#			var direction : Vector2 
-			
-#			if position.x >= image_size.x - 1:
-#				position = Vector2(0, clamp(position.y - 1, 0, image_size.y - 1))
+
 			
 			var previous_position = position
 			
@@ -290,9 +235,6 @@ func step_bot(render_bots : RenderBots):
 					# geo.closest_seg gets the point in the segment closest to the point 
 					# distance to calculate a color
 					var dist_line = Vector2(x,y).distance_to(Geometry.get_closest_point_to_segment_2d(Vector2(x,y), position, previous_position))
-#					if dist_line <= markers_distance:
-#						if render_bots.temp_image.get_pixel(x,y).r > 0.5:
-#							marker_count += 1
 					var alpha = clamp(thick_factor - dist_line, 0, 1) * get_hatching_strength(render_bots)
 					var color1 = render_bots.target_image.get_pixel(x,y)
 					var color2 = Color(color.r, color.g, color.b, alpha)              #  clamp(dist_line + (0.5 - get_hatchability_at(position, render_bots) * 0.5), 0.0, 1.0)

@@ -6,7 +6,6 @@ enum States{
 	DRAWING
 } 
 
-# onready var n : Node2D = get_node("/root/RenderBots/PreviewSprite/Node2D")
 
 
 var state = States.SEARCHING
@@ -34,25 +33,10 @@ func _draw():
 	draw_line(Vector2.ZERO, current_velocity, Color.orangered, 2.0, true)
 	draw_line(Vector2.ZERO, correction_vector*max_velocity, Color.blueviolet, 2.0, true)
 
-#func _process(delta: float) -> void:
-#	pass
+
 
 # gradient calculation of the position of the bot
 func gradient(render_bots : RenderBots, offset : Vector2 = Vector2.ZERO) -> Vector2:
-#	var right = position + Vector2(1.0, 0.0)
-#	var left = position - Vector2(1.0, 0.0)
-#	right.x = clamp(right.x, 0.0, render_bots.target_image.get_width() - 1)
-#	left.x = clamp(left.x, 0.0, render_bots.target_image.get_width() - 1)
-#	var dx = render_bots.g_buffer.dist_edge.get_pixelv(right).r
-#	dx -= render_bots.g_buffer.dist_edge.get_pixelv(left).r
-#
-#	var up = position + Vector2(0.0, 1.0)
-#	var down = position - Vector2(0.0, 1.0)
-#	up.y = clamp(up.y, 0.0, render_bots.target_image.get_height() - 1)
-#	down.y = clamp(down.y, 0.0, render_bots.target_image.get_height() - 1)
-#	var dy = render_bots.g_buffer.dist_edge.get_pixelv(up).r
-#	dy -= render_bots.g_buffer.dist_edge.get_pixelv(down).r
-#
 	var sample = render_bots.g_buffer.dist_edge.get_pixelv(clamp_position(position + offset))
 	
 	return -Vector2(sample.g, sample.b)
@@ -244,19 +228,6 @@ func step_bot(render_bots : RenderBots):
 			
 			if previous_position == position:
 				queue_free()
-			
-				
-				
-#				var b_up = 
-#				b_up.initialize(position + Vector2(0,1))
-#				var b_down = bot.instance()
-#				b_down.initialize(position + Vector2(0,-1))
-#				var b_right = bot.instance()
-#				b_right.initialize(position + Vector2(1,0))
-#				var b_left = bot.instance()
-#				b_left.initialize(position + Vector2(-1,0))
-#				#n.add_child()
-#				queue_free()
 
 			var thick_factor =(thickness + 1)*0.5 #
 			
